@@ -18,7 +18,6 @@ import SearchBar from './SearchBar';
 const Matrix = () => {
     const { tasks: googleTasks, loading, addTask, updateTask, deleteTask, error } = useGoogleTasks();
     const { showToast } = useToast();
-    const [quadrantMapping, setQuadrantMapping] = useState({});
     const [activeId, setActiveId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const doFirstRef = useRef(null);
@@ -35,12 +34,6 @@ const Matrix = () => {
     const [showCompleted, setShowCompleted] = useState(false);
 
     useEffect(() => {
-        // Load initial mapping from local storage
-        const savedMapping = localStorage.getItem('eisenhower-mapping');
-        if (savedMapping) {
-            setQuadrantMapping(JSON.parse(savedMapping));
-        }
-
         const handleGlobalKeyDown = (e) => {
             // Cmd+K or Ctrl+K to add task
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -55,11 +48,24 @@ const Matrix = () => {
         return () => window.removeEventListener('keydown', handleGlobalKeyDown);
     }, []);
 
-    // Save mapping
-    const updateMapping = (newMapping) => {
-        setQuadrantMapping(newMapping);
-        localStorage.setItem('eisenhower-mapping', JSON.stringify(newMapping));
-    };
+    // Migration from local storage to Google Tasks
+    useEffect(() => {
+        const savedMapping = localStorage.getItem('eisenhower-mapping');
+        if (savedMapping && googleTasks.length > 0) {
+            try {
+                const mapping = JSON.parse(savedMapping);
+                localStorage.removeItem('eisenhower-mapping');
+                for (const [taskId, mappedQuadrant] of Object.entries(mapping)) {
+                    const task = googleTasks.find(t => t.id === taskId);
+                    if (task && task.quadrantId !== mappedQuadrant) {
+                        updateTask(taskId, { quadrantId: mappedQuadrant });
+                    }
+                }
+            } catch (e) {
+                localStorage.removeItem('eisenhower-mapping');
+            }
+        }
+    }, [googleTasks]);
 
     // Organize tasks into quadrants
     const getTasksForQuadrant = (quadrantId) => {
@@ -73,28 +79,12 @@ const Matrix = () => {
                 if (!matchesTitle && !matchesNotes) return false;
             }
 
-            const mapping = quadrantMapping[task.id];
-            if (mapping) {
-                return mapping === quadrantId;
-            }
-            // Default logic if not mapped:
-            // "needsAction" (and no mapping) -> Do First (or maybe we should have a 'Backlog'?)
-            // For now, default to 'do-first' if it's new and unmapped
-            return quadrantId === 'do-first';
+            return task.quadrantId === quadrantId;
         });
     };
 
     const handleAddTask = async (title, notes, quadrantId) => {
-        const newTask = await addTask(title, notes, quadrantId); // Pass quadrantId to addTask
-        if (!newTask) return; // Prevent crash if task creation failed
-        // Map the new task to the correct quadrant
-        setQuadrantMapping(prev => {
-            // If addTask logic handles quadrant via notes, we might not need to setMapping if API returns it correct
-            // But for safety and instant UI update, we keep it
-            const newMapping = { ...prev, [newTask.id]: quadrantId };
-            localStorage.setItem('eisenhower-mapping', JSON.stringify(newMapping));
-            return newMapping;
-        });
+        await addTask(title, notes, quadrantId); // Pass quadrantId to addTask
     };
 
     const handleDelete = async (taskId) => {
@@ -105,15 +95,8 @@ const Matrix = () => {
 
         showToast("Task deleted", "info", async () => {
             // Undo Delete: Re-create task
-            // We lost the exact ID, but we can recreate the content and mapping
-            const mapping = quadrantMapping[taskId];
-            const quadrant = mapping || 'do-first';
-            const newTask = await addTask(task.title, task.displayNotes, quadrant, task.due);
-
-            // Restore mapping for new ID
-            if (newTask) {
-                setQuadrantMapping(prev => ({ ...prev, [newTask.id]: quadrant }));
-            }
+            const quadrant = task.quadrantId || 'do-first';
+            await addTask(task.title, task.displayNotes, quadrant, task.due);
         });
     };
 
@@ -157,29 +140,24 @@ const Matrix = () => {
         }
 
         const activeTaskId = active.id;
-        // The 'over' could be a quadrant ID OR a task ID.
-        // If it's a task ID, we need to look up which quadrant that task is in.
-
         let targetQuadrant = over.id;
 
         // Check if over.id is actually a task ID (by checking if it exists in tasks)
         const overTask = googleTasks.find(t => t.id === over.id);
         if (overTask) {
-            targetQuadrant = quadrantMapping[overTask.id] || 'do-first';
+            targetQuadrant = overTask.quadrantId || 'do-first';
         }
 
         // Verify valid quadrant
         if (!['do-first', 'schedule', 'delegate', 'delete'].includes(targetQuadrant)) {
-            // Fallback or ignore
             setActiveId(null);
             return;
         }
 
-        setQuadrantMapping(prev => {
-            const newMapping = { ...prev, [activeTaskId]: targetQuadrant };
-            localStorage.setItem('eisenhower-mapping', JSON.stringify(newMapping));
-            return newMapping;
-        });
+        const currentTask = googleTasks.find(t => t.id === activeTaskId);
+        if (currentTask && currentTask.quadrantId !== targetQuadrant) {
+            updateTask(activeTaskId, { quadrantId: targetQuadrant });
+        }
 
         setActiveId(null);
     }
