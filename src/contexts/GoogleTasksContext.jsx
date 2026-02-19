@@ -226,7 +226,7 @@ export const GoogleTasksProvider = ({ children }) => {
                 const quadrantId = parseQuadrantFromNotes(task.notes);
                 return {
                     ...task,
-                    quadrantId, // Store identified quadrant
+                    quadrantId: quadrantId || 'do-first', // Default to 'do-first' if not tagged
                     displayNotes: cleanNotes(task.notes), // Clean notes for UI
                     originalNotes: task.notes // Keep original for updates
                 };
@@ -382,8 +382,8 @@ export const GoogleTasksProvider = ({ children }) => {
         const optimisticTask = {
             ...currentTask,
             ...updates,
-            // If notes updated, update display notes
-            ...(updates.notes !== undefined ? { displayNotes: updates.notes } : {}),
+            // If notes updated, update display notes with CLEANED notes
+            ...(updates.notes !== undefined ? { displayNotes: cleanNotes(apiUpdates.notes) } : {}),
             // If quadrant updated
             ...(updates.quadrantId ? { quadrantId: updates.quadrantId } : {}),
             // Store the "real" notes that will be sent to server

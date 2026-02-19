@@ -7,13 +7,13 @@ import ErrorBoundary from './ErrorBoundary';
 export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNodeRef, onToggleComplete, onUpdate, onDelete }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     const [editTitle, setEditTitle] = React.useState(task.title);
-    const [editNotes, setEditNotes] = React.useState(task.notes || '');
+    const [editNotes, setEditNotes] = React.useState(task.displayNotes || '');
     const [editDue, setEditDue] = React.useState(task.due ? task.due.split('T')[0] : '');
 
     const handleBlur = () => {
         const hasChanges =
             editTitle !== task.title ||
-            editNotes !== (task.notes || '') ||
+            editNotes !== (task.displayNotes || '') ||
             (editDue ? editDue + 'T00:00:00.000Z' : null) !== task.due;
 
         if (hasChanges) {
@@ -88,8 +88,8 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                             </div>
                         )}
                     </div>
-                    {task.notes && !isExpanded && (
-                        <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1 truncate">{task.notes}</p>
+                    {task.displayNotes && !isExpanded && (
+                        <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1 truncate">{task.displayNotes}</p>
                     )}
                 </div>
             </div>
