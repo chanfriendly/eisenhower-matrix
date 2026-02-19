@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="10" y="10" width="35" height="35" rx="8" fill="#EA4335"/> <!-- Red -->
+  <rect x="55" y="10" width="35" height="35" rx="8" fill="#4285F4"/> <!-- Blue -->
+  <rect x="10" y="55" width="35" height="35" rx="8" fill="#FBBC05"/> <!-- Yellow -->
+  <rect x="55" y="55" width="35" height="35" rx="8" fill="#34A853"/> <!-- Green -->
+  <path d="M35 38 L45 48 L70 23" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
