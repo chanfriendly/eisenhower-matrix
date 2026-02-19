@@ -2,8 +2,7 @@
 
 A modern, productivity-focused web application that brings the [Eisenhower Matrix](https://todoist.com/productivity-methods/eisenhower-matrix) methodology to your Google Tasks.
 
-![App Screenshot](./public/images/do-first.png)
-*(Note: Replace with a real screenshot of your app if available)*
+![App Icon](./public/favicon.svg)
 
 ## Features
 
