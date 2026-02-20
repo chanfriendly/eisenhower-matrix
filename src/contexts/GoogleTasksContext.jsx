@@ -34,20 +34,48 @@ export const GoogleTasksProvider = ({ children }) => {
         return match ? match[1] : null;
     };
 
-    // Helper to inject/update quadrant in notes
-    const updateNotesWithQuadrant = (notes, quadrantId) => {
-        const tag = `[#q:${quadrantId}]`;
-        if (!notes) return tag;
-        if (notes.includes('[#q:')) {
-            return notes.replace(/\[#q:[a-zA-Z-]+\]/, tag);
-        }
-        return `${notes}\n\n${tag}`; // Add to end with some spacing
+    // Helper to extract energy from notes
+    const parseEnergyFromNotes = (notes) => {
+        if (!notes) return null;
+        const match = notes.match(/\[#energy:([a-zA-Z-]+)\]/);
+        return match ? match[1] : null;
     };
 
-    // Clean notes for display (remove tag)
+    // Helper to inject/update tags in notes
+    const updateNotesWithTags = (notes, quadrantId, energy) => {
+        let newNotes = notes || '';
+
+        // Handle Quadrant
+        const qTag = `[#q:${quadrantId}]`;
+        if (newNotes.includes('[#q:')) {
+            newNotes = newNotes.replace(/\[#q:[a-zA-Z-]+\]/, qTag);
+        } else {
+            newNotes = newNotes.trim() ? `${newNotes}\n\n${qTag}` : qTag;
+        }
+
+        // Handle Energy
+        if (energy) {
+            const eTag = `[#energy:${energy}]`;
+            if (newNotes.includes('[#energy:')) {
+                newNotes = newNotes.replace(/\[#energy:[a-zA-Z-]+\]/, eTag);
+            } else {
+                newNotes = `${newNotes} ${eTag}`;
+            }
+        } else {
+            // Remove energy tag if set to null/empty
+            newNotes = newNotes.replace(/\s*\[#energy:[a-zA-Z-]+\]/, '');
+        }
+
+        return newNotes;
+    };
+
+    // Clean notes for display (remove tags)
     const cleanNotes = (notes) => {
         if (!notes) return '';
-        return notes.replace(/\[#q:[a-zA-Z-]+\]/, '').trim();
+        return notes
+            .replace(/\[#q:[a-zA-Z-]+\]/, '')
+            .replace(/\[#energy:[a-zA-Z-]+\]/, '')
+            .trim();
     };
 
     // Load user/demo from local storage on mount
@@ -221,12 +249,25 @@ export const GoogleTasksProvider = ({ children }) => {
 
             const tasksData = await tasksRes.json();
 
-            // Process tasks to extract quadrant metadata and clean notes for display
-            const processedTasks = (tasksData.items || []).map(task => {
+            // Process tasks to extract metadata and count subtasks
+            const items = tasksData.items || [];
+
+            // Map parent IDs to count subtasks
+            const subtaskCounts = {};
+            items.forEach(t => {
+                if (t.parent) {
+                    subtaskCounts[t.parent] = (subtaskCounts[t.parent] || 0) + 1;
+                }
+            });
+
+            const processedTasks = items.map(task => {
                 const quadrantId = parseQuadrantFromNotes(task.notes);
+                const energy = parseEnergyFromNotes(task.notes);
                 return {
                     ...task,
                     quadrantId: quadrantId || 'do-first', // Default to 'do-first' if not tagged
+                    energy: energy,
+                    subtaskCount: subtaskCounts[task.id] || 0,
                     displayNotes: cleanNotes(task.notes), // Clean notes for UI
                     originalNotes: task.notes // Keep original for updates
                 };
@@ -262,8 +303,8 @@ export const GoogleTasksProvider = ({ children }) => {
             return null;
         }
 
-        // Prepare notes with tag
-        const taggedNotes = updateNotesWithQuadrant(notes || '', quadrantId);
+        // Prepare notes with tags
+        const taggedNotes = updateNotesWithTags(notes || '', quadrantId, null);
 
         // Optimistic update
         const tempId = 'temp-' + Date.now();
@@ -271,8 +312,10 @@ export const GoogleTasksProvider = ({ children }) => {
             id: tempId,
             title,
             notes: taggedNotes,
-            displayNotes: notes,
+            displayNotes: cleanNotes(taggedNotes),
             quadrantId,
+            energy: null,
+            subtaskCount: 0,
             status: 'needsAction',
             due: due
         };
@@ -288,7 +331,9 @@ export const GoogleTasksProvider = ({ children }) => {
                 ...newTask,
                 id: 'demo-' + Date.now(), // Give it a stable ID
                 quadrantId,
-                displayNotes: notes,
+                displayNotes: cleanNotes(taggedNotes),
+                energy: null,
+                subtaskCount: 0,
                 originalNotes: taggedNotes
             };
             // Replace optimstic with "saved" one
@@ -332,6 +377,8 @@ export const GoogleTasksProvider = ({ children }) => {
             const processedData = {
                 ...data,
                 quadrantId: parseQuadrantFromNotes(data.notes),
+                energy: parseEnergyFromNotes(data.notes),
+                subtaskCount: 0, // Newly added tasks have no subtasks
                 displayNotes: cleanNotes(data.notes),
                 originalNotes: data.notes
             };
@@ -364,29 +411,25 @@ export const GoogleTasksProvider = ({ children }) => {
         //     apiUpdates.completed = null;
         // }
 
-        // If client sends 'notes' update (user edited notes in UI)
-        if (updates.notes !== undefined) {
-            // Re-inject the EXISTING quadrant tag into the NEW notes
-            // We use currentTask.quadrantId because formatting notes shouldn't change quadrant
-            apiUpdates.notes = updateNotesWithQuadrant(updates.notes, currentTask.quadrantId);
-        }
+        // If client sends 'notes', 'quadrantId', or 'energy' updates
+        if (updates.notes !== undefined || updates.quadrantId || updates.energy !== undefined) {
+            // Determine base notes (edited text, or existing text minus tags)
+            let baseNotes = updates.notes !== undefined ? updates.notes : cleanNotes(currentTask.originalNotes);
 
-        // If client sends 'quadrantId' update (drag and drop)
-        if (updates.quadrantId) {
-            // We need to update the notes field with the NEW quadrant tag
-            // Use originalNotes as base to preserve any hidden data, or updates.notes if provided
-            const baseNotes = updates.notes !== undefined ? updates.notes : cleanNotes(currentTask.originalNotes);
-            apiUpdates.notes = updateNotesWithQuadrant(baseNotes, updates.quadrantId);
+            // Determine quadrant and energy
+            const updatedQuadrant = updates.quadrantId || currentTask.quadrantId;
+            const updatedEnergy = updates.energy !== undefined ? updates.energy : currentTask.energy;
+
+            apiUpdates.notes = updateNotesWithTags(baseNotes, updatedQuadrant, updatedEnergy);
         }
 
         const optimisticTask = {
             ...currentTask,
             ...updates,
-            // If notes updated, update display notes with CLEANED notes
-            ...(updates.notes !== undefined ? { displayNotes: cleanNotes(apiUpdates.notes) } : {}),
-            // If quadrant updated
+            // Update UI fields
+            ...(apiUpdates.notes !== undefined ? { displayNotes: cleanNotes(apiUpdates.notes) } : {}),
             ...(updates.quadrantId ? { quadrantId: updates.quadrantId } : {}),
-            // Store the "real" notes that will be sent to server
+            ...(updates.energy !== undefined ? { energy: updates.energy } : {}),
             originalNotes: apiUpdates.notes || currentTask.originalNotes
         };
 
@@ -408,6 +451,8 @@ export const GoogleTasksProvider = ({ children }) => {
             delete finalApiPayload.displayNotes;
             delete finalApiPayload.originalNotes;
             delete finalApiPayload.quadrantId;
+            delete finalApiPayload.energy;
+            delete finalApiPayload.subtaskCount;
 
             const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${currentListId}/tasks/${taskId}`, {
                 method: 'PATCH',
@@ -432,6 +477,8 @@ export const GoogleTasksProvider = ({ children }) => {
             const processedData = {
                 ...data,
                 quadrantId: parseQuadrantFromNotes(data.notes),
+                energy: parseEnergyFromNotes(data.notes),
+                subtaskCount: currentTask.subtaskCount, // Preserve local count
                 displayNotes: cleanNotes(data.notes),
                 originalNotes: data.notes
             };

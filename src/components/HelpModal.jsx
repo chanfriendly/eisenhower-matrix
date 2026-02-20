@@ -65,6 +65,53 @@ const HelpModal = ({ isOpen, onClose }) => {
                             <li>🟢 <strong>Delete:</strong> Not Urgent & Not Important (Distractions)</li>
                         </ul>
                     </div>
+
+                    <div className="space-y-3 mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+                        <h3 className="font-bold text-lg flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
+                            <span className="text-xl">🤖</span> Intelligent Guardrails
+                        </h3>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
+                            This app acts as a proactive productivity coach to keep you focused:
+                        </p>
+
+                        <ul className="space-y-4 text-sm text-zinc-600 dark:text-zinc-400">
+                            <li className="flex gap-3">
+                                <span className="text-yellow-500 mt-0.5">⚡</span>
+                                <div>
+                                    <strong className="text-zinc-800 dark:text-zinc-200 block">Energy Filtering</strong>
+                                    Tag tasks as "Quick" or "Deep". Turn on Low Energy Mode 🔋 to highlight quick wins and instantly dim cognitively demanding work.
+                                </div>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="text-orange-500 mt-0.5">⚠️</span>
+                                <div>
+                                    <strong className="text-zinc-800 dark:text-zinc-200 block">Q2 Stagnation Monitor</strong>
+                                    Important but non-urgent tasks tend to rot. If a task sits in the Schedule bucket for &gt; 7 days untouched, it visually warns you with a pulse and offers a 1-click promotion to Q1.
+                                </div>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="text-red-500 mt-0.5">🔍</span>
+                                <div>
+                                    <strong className="text-zinc-800 dark:text-zinc-200 block">Project Creep Detector</strong>
+                                    If a task's notes exceed 500 characters or it contains &gt; 5 subtasks, the app warns you to break it down to avoid Quadrant Paralysis.
+                                </div>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="text-blue-500 mt-0.5">📨</span>
+                                <div>
+                                    <strong className="text-zinc-800 dark:text-zinc-200 block">1-Click Delegation</strong>
+                                    Tasks in the Delegate bucket get a dedicated button that instantly drafts an email to hand the work off.
+                                </div>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="text-red-600 mt-0.5">🔥</span>
+                                <div>
+                                    <strong className="text-zinc-800 dark:text-zinc-200 block">Burnout Heatmap</strong>
+                                    Click the flame icon in the header. If &gt; 80% of your recently completed tasks involve firefighting (Q1/Q3), the app actively warns you to re-prioritize deep growth.
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 text-center">

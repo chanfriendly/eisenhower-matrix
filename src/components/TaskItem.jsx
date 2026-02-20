@@ -1,10 +1,10 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Check, Calendar, Trash2 } from 'lucide-react';
+import { GripVertical, Check, Calendar, Trash2, Zap, Brain, AlertTriangle, Send } from 'lucide-react';
 import ErrorBoundary from './ErrorBoundary';
 
-export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNodeRef, onToggleComplete, onUpdate, onDelete }) => {
+export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNodeRef, onToggleComplete, onUpdate, onDelete, isLowEnergyMode }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     const [editTitle, setEditTitle] = React.useState(task.title);
     const [editNotes, setEditNotes] = React.useState(task.displayNotes || '');
@@ -56,10 +56,53 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
         return d < today && d.toDateString() !== today.toDateString();
     };
 
+    const isStagnantQ2 = () => {
+        if (task.quadrantId !== 'schedule' || !task.updated) return false;
+        const updatedDate = new Date(task.updated);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        return updatedDate < sevenDaysAgo;
+    };
+
+    const isProjectCreep = () => {
+        return (task.displayNotes && task.displayNotes.length > 500) || task.subtaskCount > 5;
+    };
+
+    const promoteToQ1 = (e) => {
+        e.stopPropagation();
+        onUpdate(task.id, { quadrantId: 'do-first' });
+    };
+
+    const handleDelegate = (e) => {
+        e.stopPropagation();
+        const subject = encodeURIComponent(`Delegation: ${task.title}`);
+        const body = encodeURIComponent(`Task: ${task.title}\n\nDetails:\n${task.displayNotes || 'No additional details provided.'}`);
+        window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+    };
+
+    const setEnergy = (e, energyLevel) => {
+        e.stopPropagation();
+        const newEnergy = task.energy === energyLevel ? null : energyLevel;
+        onUpdate(task.id, { energy: newEnergy });
+    };
+
+    // Low Energy Styles
+    let energyClasses = '';
+    if (isLowEnergyMode) {
+        if (task.energy === 'quick') {
+            energyClasses = 'ring-2 ring-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10';
+        } else if (task.energy === 'deep') {
+            energyClasses = 'opacity-30 grayscale';
+        }
+    }
+
+    // Stagnation Styles
+    const stagnantClasses = isStagnantQ2() ? 'animate-pulse ring-2 ring-orange-500' : '';
+
     return (
         <div
             ref={setNodeRef} style={style}
-            className={`group flex flex-col p-3 mb-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-800 transition-colors ${isDragging ? 'opacity-50' : 'opacity-100'}`}
+            className={`group flex flex-col p-3 mb-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-800 transition-all ${isDragging ? 'opacity-50' : 'opacity-100'} ${energyClasses} ${stagnantClasses}`}
         >
             <div className="flex items-start gap-3">
                 <div {...attributes} {...listeners} className="mt-1 text-zinc-400 hover:text-zinc-600 cursor-grab active:cursor-grabbing flex-shrink-0">
@@ -90,6 +133,13 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                     </div>
                     {task.displayNotes && !isExpanded && (
                         <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1 truncate">{task.displayNotes}</p>
+                    )}
+
+                    {!isExpanded && isProjectCreep() && (
+                        <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-500 font-medium">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Project Creep: Breakdown recommended</span>
+                        </div>
                     )}
                 </div>
             </div>
@@ -122,22 +172,60 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                                 onBlur={handleBlur}
                             />
                         </div>
-                        <button
-                            onClick={handleDelete}
-                            className="text-zinc-400 hover:text-red-500 transition-colors p-1"
-                            title="Delete Task"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex gap-1 items-center">
+                            <button
+                                onClick={(e) => setEnergy(e, 'quick')}
+                                className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 border rounded-full transition-colors ${task.energy === 'quick' ? 'bg-yellow-100 border-yellow-300 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-400' : 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700'}`}
+                            >
+                                <Zap className="w-3 h-3" /> Quick
+                            </button>
+                            <button
+                                onClick={(e) => setEnergy(e, 'deep')}
+                                className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 border rounded-full transition-colors ${task.energy === 'deep' ? 'bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-400' : 'border-zinc-200 text-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700'}`}
+                            >
+                                <Brain className="w-3 h-3" /> Deep
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                className="text-zinc-400 hover:text-red-500 transition-colors p-1 ml-1"
+                                title="Delete Task"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
+
+            {/* Guardrail Actions outside of expanded view for immediate access */}
+            {isStagnantQ2() && (
+                <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-900 border-dashed flex justify-end">
+                    <button
+                        onClick={promoteToQ1}
+                        className="text-xs flex items-center gap-1 text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium"
+                    >
+                        <AlertTriangle className="w-3 h-3" /> Promote to Do First
+                    </button>
+                </div>
+            )}
+
+            {task.quadrantId === 'delegate' && task.status !== 'completed' && (
+                <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-700 border-dashed flex justify-end">
+                    <button
+                        onClick={handleDelegate}
+                        className="text-xs flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
+                    >
+                        <Send className="w-3 h-3" /> Delegate via Email
+                    </button>
+                </div>
+            )}
+
         </div>
     );
 };
 
 
-const TaskItem = ({ task, id, onToggleComplete, onUpdate, onDelete }) => {
+const TaskItem = ({ task, id, onToggleComplete, onUpdate, onDelete, isLowEnergyMode }) => {
     const {
         attributes,
         listeners,
@@ -164,6 +252,7 @@ const TaskItem = ({ task, id, onToggleComplete, onUpdate, onDelete }) => {
                 onToggleComplete={onToggleComplete}
                 onUpdate={onUpdate}
                 onDelete={onDelete}
+                isLowEnergyMode={isLowEnergyMode}
             />
         </ErrorBoundary>
     );

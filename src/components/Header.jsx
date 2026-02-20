@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useGoogleTasks } from '../contexts/GoogleTasksContext';
-import { LogOut, LayoutGrid, ChevronDown, CheckSquare, Settings } from 'lucide-react';
+import { LogOut, LayoutGrid, ChevronDown, CheckSquare, Settings, Flame, Info } from 'lucide-react';
 import SessionExpiredModal from './SessionExpiredModal';
 import SettingsModal from './SettingsModal';
+import BurnoutDashboard from './BurnoutDashboard';
+import HelpModal from './HelpModal';
 
 const Header = () => {
     const { user, login, logout, taskLists, currentListId, switchList, isDemo, enterDemoMode, exitDemoMode } = useGoogleTasks();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isBurnoutOpen, setIsBurnoutOpen] = useState(false);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
 
     return (
         <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between px-4 sticky top-0 z-10">
@@ -48,6 +52,22 @@ const Header = () => {
                                 <p className="text-zinc-500">{user.email}</p>
                             </div>
                         </div>
+
+                        <button
+                            onClick={() => setIsBurnoutOpen(true)}
+                            className="p-2 text-zinc-500 hover:text-orange-500 dark:text-zinc-400 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                            title="Productivity Heatmap"
+                        >
+                            <Flame className="w-5 h-5" />
+                        </button>
+
+                        <button
+                            onClick={() => setIsHelpOpen(true)}
+                            className="p-2 text-zinc-500 hover:text-blue-500 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            title="Help & Info"
+                        >
+                            <Info className="w-5 h-5" />
+                        </button>
 
                         <button
                             onClick={() => setIsSettingsOpen(true)}
@@ -99,6 +119,8 @@ const Header = () => {
 
             <SessionExpiredModal />
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+            <BurnoutDashboard isOpen={isBurnoutOpen} onClose={() => setIsBurnoutOpen(false)} />
+            <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
         </header>
     );
 };

@@ -32,6 +32,7 @@ const Matrix = () => {
 
     // Initialize/Load mapping
     const [showCompleted, setShowCompleted] = useState(false);
+    const [isLowEnergyMode, setIsLowEnergyMode] = useState(false);
 
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
@@ -178,6 +179,7 @@ const Matrix = () => {
             bg={bg}
             items={getTasksForQuadrant(id)}
             onAddTask={handleAddTask}
+            isLowEnergyMode={isLowEnergyMode}
         >
             {getTasksForQuadrant(id).map(task => (
                 <TaskItem
@@ -187,6 +189,7 @@ const Matrix = () => {
                     onToggleComplete={handleToggleComplete}
                     onUpdate={updateTask}
                     onDelete={handleDelete}
+                    isLowEnergyMode={isLowEnergyMode}
                 />
             ))}
         </DroppableQuadrant>
@@ -225,15 +228,26 @@ const Matrix = () => {
                 <div className="w-full md:w-1/3">
                     <SearchBar value={searchQuery} onChange={setSearchQuery} />
                 </div>
-                <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
-                    <input
-                        type="checkbox"
-                        checked={showCompleted}
-                        onChange={(e) => setShowCompleted(e.target.checked)}
-                        className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span>Show Completed Tasks</span>
-                </label>
+                <div className="flex items-center space-x-6">
+                    <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={isLowEnergyMode}
+                            onChange={(e) => setIsLowEnergyMode(e.target.checked)}
+                            className="rounded border-zinc-300 text-yellow-500 focus:ring-yellow-500"
+                        />
+                        <span className="flex items-center gap-1">Low Energy Mode <span role="img" aria-label="battery">🔋</span></span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={showCompleted}
+                            onChange={(e) => setShowCompleted(e.target.checked)}
+                            className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span>Show Completed Tasks</span>
+                    </label>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 grid-rows-2 gap-4 p-4 h-[calc(100vh-96px)] max-h-[calc(100vh-96px)] overflow-hidden bg-zinc-50 dark:bg-zinc-950">
@@ -246,7 +260,7 @@ const Matrix = () => {
             <DragOverlay>
                 {activeId && activeTask ? (
                     <div className="opacity-90 rotate-2 cursor-grabbing w-[300px]">
-                        <TaskCard task={activeTask} />
+                        <TaskCard task={activeTask} isLowEnergyMode={isLowEnergyMode} />
                     </div>
                 ) : null}
             </DragOverlay>
