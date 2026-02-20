@@ -20,8 +20,12 @@ export const GoogleTasksProvider = ({ children }) => {
 
 
     const handleSessionExpired = () => {
-        console.error("Token expired or invalid");
-        setSessionExpired(true);
+        console.error("Token expired or invalid, attempting silent refresh...");
+        try {
+            silentRefresh();
+        } catch (e) {
+            setSessionExpired(true);
+        }
         // Do NOT clear user data immediately so they can still read local state
     };
 
@@ -134,6 +138,24 @@ export const GoogleTasksProvider = ({ children }) => {
         },
         scope: SCOPE,
     });
+
+    const silentRefresh = useGoogleLogin({
+        prompt: 'none',
+        onSuccess: (tokenResponse) => {
+            console.log("Silent refresh success");
+            if (isDemo) exitDemoMode();
+            setAccessToken(tokenResponse.access_token);
+            localStorage.setItem('accessToken', tokenResponse.access_token);
+            setError(null);
+            setSessionExpired(false);
+        },
+        onError: (err) => {
+            console.error("Silent refresh failed", err);
+            setSessionExpired(true);
+        },
+        scope: SCOPE,
+    });
+
 
     const logout = () => {
         googleLogout();
@@ -297,7 +319,7 @@ export const GoogleTasksProvider = ({ children }) => {
         }
     };
 
-    const addTask = async (title, notes, quadrantId = 'do-first', due = null) => {
+    const addTask = async (title, notes, quadrantId = 'do-first', due = null, parent = null) => {
         if (!currentListId) {
             setError("No task list selected");
             return null;
@@ -317,7 +339,8 @@ export const GoogleTasksProvider = ({ children }) => {
             energy: null,
             subtaskCount: 0,
             status: 'needsAction',
-            due: due
+            due: due,
+            parent: parent
         };
         setTasks(prev => [newTask, ...prev]);
 
@@ -351,7 +374,9 @@ export const GoogleTasksProvider = ({ children }) => {
             const payload = { title, notes: taggedNotes };
             if (due) payload.due = due;
 
-            const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${currentListId}/tasks`, {
+            const url = `https://tasks.googleapis.com/tasks/v1/lists/${currentListId}/tasks${parent ? `?parent=${parent}` : ''}`;
+
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${accessToken}`,

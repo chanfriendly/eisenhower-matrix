@@ -12,6 +12,9 @@ A modern, productivity-focused web application that brings the [Eisenhower Matri
   - **Schedule** (Not Urgent & Important)
   - **Delegate** (Urgent & Not Important)
   - **Delete** (Not Urgent & Not Important)
+- **Subtasks Support**: Easily break down complex tasks into manageable subtasks directly within the expanded details view.
+- **Continuous Sessions**: Integrated silent token refresh ensures your session stays active in the background without constant re-login prompts.
+- **Interactive Date Picker**: Click the date on any task to visually select a due date via the native calendar.
 - **Cross-Device Sync**: Your matrix layout is preserved across devices! We use a special tag system (e.g., `[#q:do-first]`) in the task notes to remember where each task belongs.
 - **Mobile Friendly**: Responsive design that switches to a vertical stack view on mobile for easy task management on the go.
 - **Due Dates**: Set deadlines for your tasks and see when they are due. Overdue tasks are highlighted.

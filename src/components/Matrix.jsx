@@ -73,6 +73,9 @@ const Matrix = () => {
         return googleTasks.filter(task => {
             if (!showCompleted && task.status === 'completed') return false;
 
+            // Filter out subtasks from main view
+            if (task.parent) return false;
+
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 const matchesTitle = task.title?.toLowerCase().includes(query);

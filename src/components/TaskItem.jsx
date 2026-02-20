@@ -3,12 +3,25 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Check, Calendar, Trash2, Zap, Brain, AlertTriangle, Send } from 'lucide-react';
 import ErrorBoundary from './ErrorBoundary';
+import { useGoogleTasks } from '../contexts/GoogleTasksContext';
 
 export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNodeRef, onToggleComplete, onUpdate, onDelete, isLowEnergyMode }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     const [editTitle, setEditTitle] = React.useState(task.title);
     const [editNotes, setEditNotes] = React.useState(task.displayNotes || '');
     const [editDue, setEditDue] = React.useState(task.due ? task.due.split('T')[0] : '');
+
+    const { tasks: allTasks, addTask: addGoogleTask } = useGoogleTasks();
+    const [subtaskTitle, setSubtaskTitle] = React.useState('');
+    const subtasks = allTasks ? allTasks.filter(t => t.parent === task.id) : [];
+
+    const handleAddSubtask = async (e) => {
+        if (e.key === 'Enter' && subtaskTitle.trim() !== '') {
+            e.preventDefault();
+            await addGoogleTask(subtaskTitle.trim(), '', task.quadrantId, null, task.id);
+            setSubtaskTitle('');
+        }
+    };
 
     const handleBlur = () => {
         const hasChanges =
@@ -161,6 +174,42 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                         onChange={(e) => setEditNotes(e.target.value)}
                         onBlur={handleBlur}
                     />
+
+                    {/* Subtasks Section */}
+                    {subtasks.length > 0 && (
+                        <div className="mb-3 space-y-1 pl-2 border-l-2 border-zinc-200 dark:border-zinc-700">
+                            {subtasks.map(st => (
+                                <div key={st.id} className="flex items-center gap-2 group/sub">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleComplete(st.id, st.status !== 'completed');
+                                        }}
+                                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors flex-shrink-0 
+                                        ${st.status === 'completed' ? 'bg-green-500 border-green-500 text-white' : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'}`}
+                                    >
+                                        {st.status === 'completed' && <Check className="w-2.5 h-2.5" />}
+                                    </button>
+                                    <span className={`text-xs truncate ${st.status === 'completed' ? 'line-through text-zinc-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
+                                        {st.title}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Add subtask input */}
+                    <div className="mb-3 pl-2">
+                        <input
+                            type="text"
+                            placeholder="Add subtask..."
+                            className="w-full text-xs bg-transparent border-dashed border-b border-zinc-300 dark:border-zinc-700 focus:border-zinc-500 text-zinc-600 dark:text-zinc-400 focus:outline-none pb-0.5"
+                            value={subtaskTitle}
+                            onChange={(e) => setSubtaskTitle(e.target.value)}
+                            onKeyDown={handleAddSubtask}
+                        />
+                    </div>
+
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-zinc-400" />
@@ -168,6 +217,11 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                                 type="date"
                                 className="text-xs text-zinc-600 dark:text-zinc-400 bg-transparent focus:outline-none cursor-pointer"
                                 value={editDue}
+                                onClick={(e) => {
+                                    try {
+                                        e.target.showPicker();
+                                    } catch (err) { }
+                                }}
                                 onChange={(e) => setEditDue(e.target.value)}
                                 onBlur={handleBlur}
                             />
