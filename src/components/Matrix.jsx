@@ -253,11 +253,19 @@ const Matrix = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 grid-rows-2 gap-4 p-4 h-[calc(100vh-96px)] max-h-[calc(100vh-96px)] overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-                {renderQuadrant('do-first', 'Do First (Urgent & Important)', 'border-red-200 dark:border-red-900/30', 'bg-red-100 dark:bg-red-900/20')}
-                {renderQuadrant('schedule', 'Schedule (Not Urgent & Important)', 'border-blue-200 dark:border-blue-900/30', 'bg-blue-100 dark:bg-blue-900/20')}
-                {renderQuadrant('delegate', 'Delegate (Urgent & Not Important)', 'border-amber-200 dark:border-amber-900/30', 'bg-amber-100 dark:bg-amber-900/20')}
-                {renderQuadrant('delete', 'Delete (Not Urgent & Not Important)', 'border-green-200 dark:border-green-900/30', 'bg-green-100 dark:bg-green-900/20')}
+            <div className="flex flex-col md:grid md:grid-cols-2 md:grid-rows-2 gap-4 p-4 md:h-[calc(100vh-96px)] md:max-h-[calc(100vh-96px)] md:overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+                <div className="h-[350px] sm:h-[400px] md:h-full">
+                    {renderQuadrant('do-first', 'Do First (Urgent & Important)', 'border-red-200 dark:border-red-900/30', 'bg-red-100 dark:bg-red-900/20')}
+                </div>
+                <div className="h-[350px] sm:h-[400px] md:h-full">
+                    {renderQuadrant('schedule', 'Schedule (Not Urgent & Important)', 'border-blue-200 dark:border-blue-900/30', 'bg-blue-100 dark:bg-blue-900/20')}
+                </div>
+                <div className="h-[350px] sm:h-[400px] md:h-full">
+                    {renderQuadrant('delegate', 'Delegate (Urgent & Not Important)', 'border-amber-200 dark:border-amber-900/30', 'bg-amber-100 dark:bg-amber-900/20')}
+                </div>
+                <div className="h-[350px] sm:h-[400px] md:h-full">
+                    {renderQuadrant('delete', 'Delete (Not Urgent & Not Important)', 'border-green-200 dark:border-green-900/30', 'bg-green-100 dark:bg-green-900/20')}
+                </div>
             </div>
 
             <DragOverlay>
