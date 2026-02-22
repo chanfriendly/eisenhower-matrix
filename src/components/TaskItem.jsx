@@ -1,9 +1,10 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Check, Calendar, Trash2, Zap, Brain, AlertTriangle, Send } from 'lucide-react';
+import { GripVertical, Check, Calendar, Trash2, Zap, Brain, AlertTriangle, Send, Database } from 'lucide-react';
 import ErrorBoundary from './ErrorBoundary';
 import { useGoogleTasks } from '../contexts/GoogleTasksContext';
+import { useNotion } from '../contexts/NotionContext';
 
 export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNodeRef, onToggleComplete, onUpdate, onDelete, isLowEnergyMode }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -11,7 +12,127 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
     const [editNotes, setEditNotes] = React.useState(task.displayNotes || '');
     const [editDue, setEditDue] = React.useState(task.due ? task.due.split('T')[0] : '');
 
-    const { tasks: allTasks, addTask: addGoogleTask } = useGoogleTasks();
+    const { tasks: allTasks, addTask: addGoogleTask, createTaskList, deleteTask } = useGoogleTasks();
+    const { notionToken, loginNotion } = useNotion();
+
+    const [isConverting, setIsConverting] = React.useState(false);
+    const [isExporting, setIsExporting] = React.useState(false);
+
+    // Notion Export State
+    const [databases, setDatabases] = React.useState([]);
+    const [showDbSelector, setShowDbSelector] = React.useState(false);
+    const [selectedDb, setSelectedDb] = React.useState('');
+    const [isFetchingDbs, setIsFetchingDbs] = React.useState(false);
+
+    const handleFetchDatabases = async (e) => {
+        e.stopPropagation();
+        setIsFetchingDbs(true);
+        try {
+            const res = await fetch('/api/notion-databases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notionToken })
+            });
+            if (!res.ok) throw new Error('Failed to fetch databases');
+            const data = await res.json();
+
+            if (data.databases && data.databases.length > 0) {
+                setDatabases(data.databases);
+                setSelectedDb(data.databases[0].id); // default to first
+                setShowDbSelector(true);
+            } else {
+                alert("No accessible Notion databases found. Please ensure you granted access to a database during login.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error fetching Notion databases.");
+        } finally {
+            setIsFetchingDbs(false);
+        }
+    };
+
+    const handleConfirmExport = async (e) => {
+        e.stopPropagation();
+        if (!selectedDb) return;
+
+        setIsExporting(true);
+        setShowDbSelector(false); // Hide selector during export
+
+        try {
+            const response = await fetch('/api/export-to-notion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: task.title,
+                    notes: task.displayNotes,
+                    energy: task.energy,
+                    quadrantId: task.quadrantId,
+                    status: task.status,
+                    subtasks: subtasks.map(st => ({
+                        title: st.title,
+                        status: st.status
+                    })),
+                    notionToken, // Pass token to backend
+                    databaseId: selectedDb // Pass user-selected DB
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to export');
+            }
+
+            const result = await response.json();
+            alert(`Successfully exported to Notion!`);
+            if (result.url) {
+                window.open(result.url, '_blank');
+            }
+        } catch (err) {
+            console.error("Export failed", err);
+            alert(`Failed to export to Notion: ${err.message}`);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleConvertToNewList = async (e) => {
+        e.stopPropagation();
+        if (!createTaskList) {
+            alert("Creating task lists is not supported in demo mode yet.");
+            return;
+        }
+
+        if (confirm('Create a new task list for this project and move its items?')) {
+            setIsConverting(true);
+            try {
+                // 1. Create the new list
+                const newList = await createTaskList(`Project: ${task.title}`);
+                if (!newList) throw new Error("Failed to create list");
+
+                // 2. Add subtasks to the new list
+                for (const st of subtasks) {
+                    await addGoogleTask(st.title, st.displayNotes, 'do-first', st.due, null, newList.id);
+                }
+
+                // Add the main notes as a "Project Details" task if they exist and are long
+                if (task.displayNotes) {
+                    await addGoogleTask("Project Details & Notes", task.displayNotes, 'schedule', null, null, newList.id);
+                }
+
+                // 3. Delete the original task from the current list
+                await deleteTask(task.id);
+
+                // alert(`Successfully moved to new list: ${newList.title}`); // Optional alert
+            } catch (err) {
+                console.error("Conversion failed", err);
+                alert("Failed to convert to new list.");
+            } finally {
+                setIsConverting(false);
+            }
+        }
+    };
     const [subtaskTitle, setSubtaskTitle] = React.useState('');
     const subtasks = allTasks ? allTasks.filter(t => t.parent === task.id) : [];
 
@@ -148,12 +269,77 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                         <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1 truncate">{task.displayNotes}</p>
                     )}
 
-                    {!isExpanded && isProjectCreep() && (
-                        <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-500 font-medium">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span>Project Creep: Breakdown recommended</span>
+                    {!isExpanded && isProjectCreep() && !showDbSelector && (
+                        <div className="mt-1 flex items-center justify-between">
+                            <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-500 font-medium">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>Breakdown recommended</span>
+                            </div>
+                            <div className="flex gap-1">
+                                {/* NOTION INTEGRATION HIDDEN FOR NOW
+                                {!notionToken ? (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); loginNotion(); }}
+                                        className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors"
+                                    >
+                                        Login with Notion
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleFetchDatabases}
+                                        disabled={isExporting || isFetchingDbs}
+                                        className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-50"
+                                    >
+                                        {isExporting ? 'Exporting...' : isFetchingDbs ? 'Loading...' : 'Export to Notion'}
+                                    </button>
+                                )}
+                                */}
+                                <button
+                                    onClick={handleConvertToNewList}
+                                    disabled={isConverting}
+                                    className="text-[10px] px-2 py-0.5 bg-amber-100/50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded hover:bg-amber-200/50 dark:hover:bg-amber-900/50 transition-colors disabled:opacity-50"
+                                >
+                                    {isConverting ? 'Converting...' : 'New Google List'}
+                                </button>
+                            </div>
                         </div>
                     )}
+
+                    {/* NOTION INTEGRATION HIDDEN FOR NOW
+                    {!isExpanded && showDbSelector && (
+                        <div className="mt-2 p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md flex flex-col gap-2">
+                            <div className="flex items-center gap-1 text-[10px] text-zinc-600 dark:text-zinc-400 font-medium pb-1 border-b border-zinc-200 dark:border-zinc-700">
+                                <Database className="w-3 h-3" />
+                                <span>Select Destination Database</span>
+                            </div>
+                            <select
+                                value={selectedDb}
+                                onChange={(e) => setSelectedDb(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full text-xs p-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded"
+                            >
+                                {databases.map(db => (
+                                    <option key={db.id} value={db.id}>{db.title}</option>
+                                ))}
+                            </select>
+                            <div className="flex justify-end gap-1 mt-1">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setShowDbSelector(false); }}
+                                    className="text-[10px] px-2 py-0.5 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmExport}
+                                    disabled={!selectedDb || isExporting}
+                                    className="text-[10px] px-3 py-0.5 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                                >
+                                    {isExporting ? 'Exporting...' : 'Confirm'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    */}
                 </div>
             </div>
 
@@ -273,11 +459,9 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                     </button>
                 </div>
             )}
-
         </div>
     );
 };
-
 
 const TaskItem = ({ task, id, onToggleComplete, onUpdate, onDelete, isLowEnergyMode }) => {
     const {

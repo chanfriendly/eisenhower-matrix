@@ -319,8 +319,38 @@ export const GoogleTasksProvider = ({ children }) => {
         }
     };
 
-    const addTask = async (title, notes, quadrantId = 'do-first', due = null, parent = null) => {
-        if (!currentListId) {
+    const createTaskList = async (title) => {
+        if (!accessToken) return null;
+        try {
+            const res = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title })
+            });
+
+            if (!res.ok) {
+                if (res.status === 401) {
+                    handleSessionExpired();
+                    return null;
+                }
+                throw new Error(`Failed to create task list: ${res.status}`);
+            }
+
+            const data = await res.json();
+            setTaskLists(prev => [...prev, data]);
+            return data;
+        } catch (error) {
+            console.error("Failed to create task list", error);
+            setError(error.message);
+            return null;
+        }
+    };
+
+    const addTask = async (title, notes, quadrantId = 'do-first', due = null, parent = null, targetListId = currentListId) => {
+        if (!targetListId) {
             setError("No task list selected");
             return null;
         }
@@ -374,7 +404,7 @@ export const GoogleTasksProvider = ({ children }) => {
             const payload = { title, notes: taggedNotes };
             if (due) payload.due = due;
 
-            const url = `https://tasks.googleapis.com/tasks/v1/lists/${currentListId}/tasks${parent ? `?parent=${parent}` : ''}`;
+            const url = `https://tasks.googleapis.com/tasks/v1/lists/${targetListId}/tasks${parent ? `?parent=${parent}` : ''}`;
 
             const res = await fetch(url, {
                 method: 'POST',
@@ -576,6 +606,7 @@ export const GoogleTasksProvider = ({ children }) => {
             switchList,
             fetchTasks,
             addTask,
+            createTaskList,
             updateTask,
             deleteTask,
             loading,

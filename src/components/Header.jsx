@@ -45,8 +45,18 @@ const Header = () => {
                             <img
                                 src={user.picture}
                                 alt={user.name}
-                                className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700"
+                                referrerPolicy="no-referrer"
+                                className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                }}
                             />
+                            {/* Fallback avatar if image completely fails */}
+                            <div className="hidden w-8 h-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 font-bold items-center justify-center border border-zinc-200 dark:border-zinc-700">
+                                {user.name ? user.name.charAt(0).toUpperCase() : '?'}
+                            </div>
                             <div className="text-xs">
                                 <p className="font-medium text-zinc-700 dark:text-zinc-200">{user.name}</p>
                                 <p className="text-zinc-500">{user.email}</p>
