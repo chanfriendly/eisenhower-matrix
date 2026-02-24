@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Check, Calendar, Trash2, Zap, Brain, AlertTriangle, Send, Database } from 'lucide-react';
+import { GripVertical, Check, Calendar, Trash2, Zap, Brain, AlertTriangle, Send, Database, Sparkles } from 'lucide-react';
 import ErrorBoundary from './ErrorBoundary';
 import { useGoogleTasks } from '../contexts/GoogleTasksContext';
 import { useNotion } from '../contexts/NotionContext';
@@ -212,6 +212,33 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
         const subject = encodeURIComponent(`Delegation: ${task.title}`);
         const body = encodeURIComponent(`Task: ${task.title}\n\nDetails:\n${task.displayNotes || 'No additional details provided.'}`);
         window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+    };
+
+    const handleDelegateToAI = async (e) => {
+        e.stopPropagation();
+        const prompt = `I need you to complete the following task for me if possible. If you have the capabilities to perform actions (like making purchases, sending emails, booking reservations, or executing code) to finish it, please do so.\n\nTitle: ${task.title}\n\nNotes:\n${task.displayNotes || 'No additional details provided.'}\n\nIf you cannot fully complete it, please help me break this down into actionable steps or provide a draft solution.`;
+
+        try {
+            await navigator.clipboard.writeText(prompt);
+            alert("Prompt copied to clipboard! Paste it into Gemini.");
+            window.open('https://gemini.google.com/app', '_blank');
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            // Fallback for browsers that don't support async clipboard API
+            const textArea = document.createElement("textarea");
+            textArea.value = prompt;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Prompt copied to clipboard! Paste it into Gemini.");
+                window.open('https://gemini.google.com/app', '_blank');
+            } catch (fallbackErr) {
+                console.error('Fallback copy failed', fallbackErr);
+                alert("Failed to copy prompt to clipboard automatically. Your browser may have blocked it.");
+            }
+            document.body.removeChild(textArea);
+        }
     };
 
     const setEnergy = (e, energyLevel) => {
@@ -450,12 +477,18 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
             )}
 
             {task.quadrantId === 'delegate' && task.status !== 'completed' && (
-                <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-700 border-dashed flex justify-end">
+                <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-700 border-dashed flex justify-end gap-3 rounded-b-lg pb-1 pr-1 bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <button
+                        onClick={handleDelegateToAI}
+                        className="text-[11px] flex items-center gap-1.5 px-2 py-1 text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 rounded transition-colors font-medium border border-purple-100 dark:border-purple-800/30"
+                    >
+                        <Sparkles className="w-3.5 h-3.5" /> Delegate to Gemini
+                    </button>
                     <button
                         onClick={handleDelegate}
-                        className="text-xs flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
+                        className="text-[11px] flex items-center gap-1.5 px-2 py-1 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors font-medium border border-blue-100 dark:border-blue-800/30"
                     >
-                        <Send className="w-3 h-3" /> Delegate via Email
+                        <Send className="w-3.5 h-3.5" /> Delegate via Email
                     </button>
                 </div>
             )}
