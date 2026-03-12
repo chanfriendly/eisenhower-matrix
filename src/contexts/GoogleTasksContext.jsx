@@ -227,9 +227,11 @@ export const GoogleTasksProvider = ({ children }) => {
             // If we have lists and no current list is selected, select the first one
             // Or if the current list isn't in the new list of lists (unlikely but possible)
             if (items.length > 0) {
-                const listToUse = currentListId && items.find(l => l.id === currentListId)
-                    ? currentListId
-                    : items[0].id;
+                const listToUse = currentListId === 'ALL'
+                    ? 'ALL'
+                    : (currentListId && items.find(l => l.id === currentListId)
+                        ? currentListId
+                        : items[0].id);
 
                 if (listToUse !== currentListId) {
                     setCurrentListId(listToUse);
@@ -257,22 +259,54 @@ export const GoogleTasksProvider = ({ children }) => {
         if (!accessToken || !listId) return;
         setLoading(true);
         try {
-            const tasksRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true`, {
-                headers: { Authorization: `Bearer ${accessToken}` }
-            });
+            let allItems = [];
 
-            if (!tasksRes.ok) {
-                if (tasksRes.status === 401) {
-                    handleSessionExpired();
-                    return;
+            if (listId === 'ALL') {
+                const listPromises = taskLists.map(list =>
+                    fetch(`https://tasks.googleapis.com/tasks/v1/lists/${list.id}/tasks?showCompleted=true&showHidden=true`, {
+                        headers: { Authorization: `Bearer ${accessToken}` }
+                    }).then(async res => {
+                        if (!res.ok) {
+                            if (res.status === 401) throw new Error('401');
+                            return [];
+                        }
+                        const data = await res.json();
+                        return (data.items || []).map(t => ({ ...t, listId: list.id }));
+                    }).catch(e => {
+                        if (e.message === '401') throw e;
+                        return [];
+                    })
+                );
+
+                try {
+                    const results = await Promise.all(listPromises);
+                    allItems = results.flat();
+                } catch (e) {
+                    if (e.message === '401') {
+                        handleSessionExpired();
+                        return;
+                    }
+                    throw e;
                 }
-                throw new Error(`Failed to fetch tasks: ${tasksRes.status}`);
+            } else {
+                const tasksRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true`, {
+                    headers: { Authorization: `Bearer ${accessToken}` }
+                });
+
+                if (!tasksRes.ok) {
+                    if (tasksRes.status === 401) {
+                        handleSessionExpired();
+                        return;
+                    }
+                    throw new Error(`Failed to fetch tasks: ${tasksRes.status}`);
+                }
+
+                const tasksData = await tasksRes.json();
+                allItems = (tasksData.items || []).map(t => ({ ...t, listId: listId }));
             }
 
-            const tasksData = await tasksRes.json();
-
             // Process tasks to extract metadata and count subtasks
-            const items = tasksData.items || [];
+            const items = allItems;
 
             // Map parent IDs to count subtasks
             const subtaskCounts = {};
@@ -350,6 +384,10 @@ export const GoogleTasksProvider = ({ children }) => {
     };
 
     const addTask = async (title, notes, quadrantId = 'do-first', due = null, parent = null, targetListId = currentListId) => {
+        if (!targetListId || targetListId === 'ALL') {
+            targetListId = taskLists.length > 0 ? taskLists[0].id : null;
+        }
+
         if (!targetListId) {
             setError("No task list selected");
             return null;
@@ -370,7 +408,8 @@ export const GoogleTasksProvider = ({ children }) => {
             subtaskCount: 0,
             status: 'needsAction',
             due: due,
-            parent: parent
+            parent: parent,
+            listId: targetListId
         };
         setTasks(prev => [newTask, ...prev]);
 
@@ -387,7 +426,8 @@ export const GoogleTasksProvider = ({ children }) => {
                 displayNotes: cleanNotes(taggedNotes),
                 energy: null,
                 subtaskCount: 0,
-                originalNotes: taggedNotes
+                originalNotes: taggedNotes,
+                listId: targetListId
             };
             // Replace optimstic with "saved" one
             setTasks(prev => prev.map(t => t.id === tempId ? processedDemoTask : t));
@@ -435,7 +475,8 @@ export const GoogleTasksProvider = ({ children }) => {
                 energy: parseEnergyFromNotes(data.notes),
                 subtaskCount: 0, // Newly added tasks have no subtasks
                 displayNotes: cleanNotes(data.notes),
-                originalNotes: data.notes
+                originalNotes: data.notes,
+                listId: targetListId
             };
 
             // Replace temp task with real one
@@ -460,6 +501,9 @@ export const GoogleTasksProvider = ({ children }) => {
         // Find current task to get its latest state
         const currentTask = tasks.find(t => t.id === taskId);
         if (!currentTask) return;
+
+        const targetListId = currentTask.listId || currentListId;
+        if (!targetListId || targetListId === 'ALL') return;
 
         // Handle specific fields
         // if (updates.status === 'needsAction') {
@@ -509,7 +553,7 @@ export const GoogleTasksProvider = ({ children }) => {
             delete finalApiPayload.energy;
             delete finalApiPayload.subtaskCount;
 
-            const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${currentListId}/tasks/${taskId}`, {
+            const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${targetListId}/tasks/${taskId}`, {
                 method: 'PATCH',
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -535,7 +579,8 @@ export const GoogleTasksProvider = ({ children }) => {
                 energy: parseEnergyFromNotes(data.notes),
                 subtaskCount: currentTask.subtaskCount, // Preserve local count
                 displayNotes: cleanNotes(data.notes),
-                originalNotes: data.notes
+                originalNotes: data.notes,
+                listId: targetListId
             };
 
             // Ensure state matches server (sometimes server adds fields)
@@ -556,6 +601,9 @@ export const GoogleTasksProvider = ({ children }) => {
         const taskToDelete = tasks.find(t => t.id === taskId);
         if (!taskToDelete) return;
 
+        const targetListId = taskToDelete.listId || currentListId;
+        if (!targetListId || targetListId === 'ALL') return;
+
         // Optimistic update
         setTasks(prev => prev.filter(t => t.id !== taskId));
 
@@ -569,7 +617,7 @@ export const GoogleTasksProvider = ({ children }) => {
         if (!accessToken) return;
 
         try {
-            const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${currentListId}/tasks/${taskId}`, {
+            const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${targetListId}/tasks/${taskId}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${accessToken}` }
             });

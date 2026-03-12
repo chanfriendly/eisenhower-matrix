@@ -8,27 +8,26 @@ const SessionExpiredModal = () => {
     if (!sessionExpired) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-sm w-full p-6 text-center border border-zinc-200 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <LogIn className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl max-w-sm w-full p-4 border border-red-200 dark:border-red-900/30 flex items-start gap-4">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex-shrink-0 flex items-center justify-center">
+                    <LogIn className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
-
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">
-                    Session Expired
-                </h3>
-
-                <p className="text-zinc-600 dark:text-zinc-400 mb-6 text-sm">
-                    Your connection to Google Tasks has expired. Please sign in again to continue syncing your changes.
-                </p>
-
-                <button
-                    onClick={() => login()}
-                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                    <LogIn className="w-4 h-4" />
-                    Sign In
-                </button>
+                <div className="flex-1">
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-1">
+                        Session Expired
+                    </h3>
+                    <p className="text-zinc-600 dark:text-zinc-400 text-xs mb-3">
+                        Your connection to Google Tasks expired. Please sign in again to sync changes.
+                    </p>
+                    <button
+                        onClick={() => login({ prompt: 'consent' })}
+                        className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                        <LogIn className="w-4 h-4" />
+                        Sign In
+                    </button>
+                </div>
             </div>
         </div>
     );

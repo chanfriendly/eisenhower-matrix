@@ -7,7 +7,7 @@ import BurnoutDashboard from './BurnoutDashboard';
 import HelpModal from './HelpModal';
 
 const Header = () => {
-    const { user, login, logout, taskLists, currentListId, switchList, isDemo, enterDemoMode, exitDemoMode } = useGoogleTasks();
+    const { user, login, logout, taskLists, currentListId, switchList, isDemo, enterDemoMode, exitDemoMode, createTaskList } = useGoogleTasks();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isBurnoutOpen, setIsBurnoutOpen] = useState(false);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -28,14 +28,41 @@ const Header = () => {
                             <div className="relative group">
                                 <select
                                     value={currentListId || ''}
-                                    onChange={(e) => switchList(e.target.value)}
+                                    onChange={async (e) => {
+                                        const value = e.target.value;
+                                        if (value === 'NEW_LIST') {
+                                            const name = window.prompt("Enter new list name:");
+                                            if (name && name.trim()) {
+                                                const newList = await createTaskList(name.trim());
+                                                if (newList) {
+                                                    switchList(newList.id);
+                                                } else {
+                                                    // revert to previous if creation failed
+                                                    e.target.value = currentListId || '';
+                                                }
+                                            } else {
+                                                // reverted if canceled
+                                                e.target.value = currentListId || '';
+                                            }
+                                        } else {
+                                            switchList(value);
+                                        }
+                                    }}
                                     className="appearance-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 text-sm rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors max-w-[150px] sm:max-w-[200px] truncate"
                                 >
-                                    {taskLists.map(list => (
-                                        <option key={list.id} value={list.id}>
-                                            {list.title}
-                                        </option>
-                                    ))}
+                                    <option value="ALL">All Tasks</option>
+                                    {taskLists.length > 0 && (
+                                        <optgroup label="Your Lists">
+                                            {taskLists.map(list => (
+                                                <option key={list.id} value={list.id}>
+                                                    {list.title}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    <optgroup label="Actions">
+                                        <option value="NEW_LIST">+ Create New List...</option>
+                                    </optgroup>
                                 </select>
                                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
                             </div>

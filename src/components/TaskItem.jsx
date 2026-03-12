@@ -176,18 +176,27 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
 
     const formatDate = (dateString) => {
         if (!dateString) return null;
+        // Parse the UTC date string and format it aggressively in UTC 
+        // to prevent the browser from stepping it back a day in Western timezones.
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
     };
 
     const isOverdue = (dateString) => {
         if (!dateString) return false;
-        // Compare dates (ignoring time)
-        const d = new Date(dateString);
+
+        // Extract the target YYYY-MM-DD from the ISO string
+        const targetDateStr = dateString.split('T')[0];
+
+        // Get today's local calendar date formatted as YYYY-MM-DD
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        // If due date is before today (and not today)
-        return d < today && d.toDateString() !== today.toDateString();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        // Lexicographical comparison safely determines if the due date is in the past
+        return targetDateStr < todayStr;
     };
 
     const isStagnantQ2 = () => {
