@@ -12,7 +12,7 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
     const [editNotes, setEditNotes] = React.useState(task.displayNotes || '');
     const [editDue, setEditDue] = React.useState(task.due ? task.due.split('T')[0] : '');
 
-    const { tasks: allTasks, addTask: addGoogleTask, createTaskList, deleteTask } = useGoogleTasks();
+    const { tasks: allTasks, taskLists, currentListId, addTask: addGoogleTask, createTaskList, deleteTask, moveTaskToList } = useGoogleTasks();
     const { notionToken, loginNotion } = useNotion();
 
     const [isConverting, setIsConverting] = React.useState(false);
@@ -447,6 +447,22 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                                 onChange={(e) => setEditDue(e.target.value)}
                                 onBlur={handleBlur}
                             />
+                            {taskLists && taskLists.length > 1 && (
+                                <select
+                                    className="ml-2 text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-purple-500 max-w-[100px] truncate"
+                                    value={task.listId || currentListId || ''}
+                                    onChange={(e) => {
+                                        const target = e.target.value;
+                                        if (target && target !== (task.listId || currentListId)) {
+                                            moveTaskToList(task.id, target);
+                                        }
+                                    }}
+                                >
+                                    {taskLists.map(list => (
+                                        <option key={list.id} value={list.id}>{list.title}</option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                         <div className="flex gap-1 items-center">
                             <button

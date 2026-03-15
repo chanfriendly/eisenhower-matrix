@@ -6,7 +6,8 @@ import {
     KeyboardSensor,
     PointerSensor,
     useSensor,
-    useSensors
+    useSensors,
+    useDroppable
 } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useGoogleTasks } from '../contexts/GoogleTasksContext';
@@ -15,8 +16,26 @@ import DroppableQuadrant from './DroppableQuadrant';
 import TaskItem, { TaskCard } from './TaskItem';
 import SearchBar from './SearchBar';
 
+const ListDropZone = ({ list }) => {
+    const { isOver, setNodeRef } = useDroppable({
+        id: `list-${list.id}`,
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`flex-1 min-w-[120px] p-3 rounded-xl border-2 border-dashed flex items-center justify-center text-sm font-medium transition-all ${isOver
+                    ? 'border-purple-500 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:border-purple-400 dark:text-purple-300 scale-105'
+                    : 'border-zinc-300 bg-zinc-100 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
+                }`}
+        >
+            Drag to {list.title}
+        </div>
+    );
+};
+
 const Matrix = () => {
-    const { tasks: googleTasks, loading, addTask, updateTask, deleteTask, error } = useGoogleTasks();
+    const { tasks: googleTasks, taskLists, currentListId, loading, addTask, updateTask, deleteTask, moveTaskToList, error } = useGoogleTasks();
     const { showToast } = useToast();
     const [activeId, setActiveId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -144,6 +163,15 @@ const Matrix = () => {
         }
 
         const activeTaskId = active.id;
+
+        // Check for list drop zone
+        if (String(over.id).startsWith('list-')) {
+            const targetListId = String(over.id).replace('list-', '');
+            moveTaskToList(activeTaskId, targetListId);
+            setActiveId(null);
+            return;
+        }
+
         let targetQuadrant = over.id;
 
         // Check if over.id is actually a task ID (by checking if it exists in tasks)
@@ -228,29 +256,44 @@ const Matrix = () => {
             )}
 
             <div className="flex flex-col md:flex-row justify-between items-center px-4 pt-4 gap-4">
-                <div className="w-full md:w-1/3">
-                    <SearchBar value={searchQuery} onChange={setSearchQuery} />
-                </div>
-                <div className="flex items-center space-x-6">
-                    <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={isLowEnergyMode}
-                            onChange={(e) => setIsLowEnergyMode(e.target.checked)}
-                            className="rounded border-zinc-300 text-yellow-500 focus:ring-yellow-500"
-                        />
-                        <span className="flex items-center gap-1">Low Energy Mode <span role="img" aria-label="battery">🔋</span></span>
-                    </label>
-                    <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={showCompleted}
-                            onChange={(e) => setShowCompleted(e.target.checked)}
-                            className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span>Show Completed Tasks</span>
-                    </label>
-                </div>
+                {activeId ? (
+                    <div className="w-full flex gap-3 overflow-x-auto pb-2 custom-scrollbar animate-in slide-in-from-top-4 duration-300">
+                        {taskLists.filter(list => list.id !== currentListId).map(list => (
+                            <ListDropZone key={list.id} list={list} />
+                        ))}
+                        {taskLists.length <= 1 && currentListId !== 'ALL' && (
+                            <div className="flex-1 p-3 rounded-xl border border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center">
+                                Create another list to move tasks
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="w-full md:w-1/3">
+                            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                        </div>
+                        <div className="flex items-center space-x-6">
+                            <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={isLowEnergyMode}
+                                    onChange={(e) => setIsLowEnergyMode(e.target.checked)}
+                                    className="rounded border-zinc-300 text-yellow-500 focus:ring-yellow-500"
+                                />
+                                <span className="flex items-center gap-1">Low Energy Mode <span role="img" aria-label="battery">🔋</span></span>
+                            </label>
+                            <label className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={showCompleted}
+                                    onChange={(e) => setShowCompleted(e.target.checked)}
+                                    className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span>Show Completed Tasks</span>
+                            </label>
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className="flex flex-col md:grid md:grid-cols-2 md:grid-rows-2 gap-4 p-4 md:h-[calc(100vh-96px)] md:max-h-[calc(100vh-96px)] md:overflow-hidden bg-zinc-50 dark:bg-zinc-950">

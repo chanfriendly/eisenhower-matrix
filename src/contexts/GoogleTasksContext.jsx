@@ -640,6 +640,77 @@ export const GoogleTasksProvider = ({ children }) => {
         }
     };
 
+    const moveTaskToList = async (taskId, targetListId) => {
+        if (!targetListId) return;
+
+        const taskToMove = tasks.find(t => t.id === taskId);
+        if (!taskToMove) return;
+
+        const originalListId = taskToMove.listId;
+        if (!originalListId || originalListId === targetListId) return;
+
+        // Optimistically remove from current view if not 'ALL'
+        if (currentListId !== 'ALL') {
+            setTasks(prev => prev.filter(t => t.id !== taskId));
+        } else {
+            // If in ALL view, purely update listId optimistically
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, listId: targetListId } : t));
+        }
+
+        if (isDemo) {
+            const localTasks = JSON.parse(localStorage.getItem('demo-tasks') || '[]');
+            const updatedLocal = localTasks.map(t => t.id === taskId ? { ...t, listId: targetListId } : t);
+            localStorage.setItem('demo-tasks', JSON.stringify(updatedLocal));
+            return;
+        }
+
+        if (!accessToken) return;
+
+        try {
+            // 1. Create task in new list
+            const payload = {
+                title: taskToMove.title,
+                notes: taskToMove.originalNotes || taskToMove.notes
+            };
+            if (taskToMove.due) payload.due = taskToMove.due;
+
+            const addRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${targetListId}/tasks`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!addRes.ok) throw new Error("Failed to copy task to new list");
+
+            // 2. Delete task from original list
+            const delRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${originalListId}/tasks/${taskId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+
+            if (!delRes.ok) console.error("Failed to delete original task after moving");
+
+            // We could update the task's ID cleanly, but fetching is safer to get the new Google Task ID.
+            if (currentListId === 'ALL') {
+                // Background fetch to sync the newly created ID in "All Tasks"
+                fetchTasksForList('ALL');
+            }
+        } catch (error) {
+            console.error("Failed to move task", error);
+            setError("Failed to move task correctly. " + error.message);
+
+            // Revert optimistic update
+            if (currentListId !== 'ALL') {
+                setTasks(prev => [...prev, taskToMove]);
+            } else {
+                setTasks(prev => prev.map(t => t.id === taskId ? { ...t, listId: originalListId } : t));
+            }
+        }
+    };
+
     return (
         <GoogleTasksContext.Provider value={{
             user,
@@ -657,6 +728,7 @@ export const GoogleTasksProvider = ({ children }) => {
             createTaskList,
             updateTask,
             deleteTask,
+            moveTaskToList,
             loading,
             error,
             sessionExpired
