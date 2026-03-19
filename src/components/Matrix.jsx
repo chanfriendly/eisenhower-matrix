@@ -3,6 +3,7 @@ import {
     DndContext,
     DragOverlay,
     closestCorners,
+    pointerWithin,
     KeyboardSensor,
     PointerSensor,
     useSensor,
@@ -32,6 +33,23 @@ const ListDropZone = ({ list }) => {
             Drag to {list.title}
         </div>
     );
+};
+
+const customCollisionDetection = (args) => {
+    // First, check what we are intersecting with the pointer directly
+    const pointerCollisions = pointerWithin(args);
+    
+    // Check if any of the explicit pointer collisions is a list drop zone
+    const isOverList = pointerCollisions.find(c => String(c.id).startsWith('list-'));
+    if (isOverList) {
+        return [isOverList];
+    }
+    
+    // If we're not explicitly pointing at a list, remove any list drop zones from other collision detection results
+    // This prevents accidentally snapping to list drop zones when using closestCorners on quadrants
+    const cornersCollisions = closestCorners(args).filter(c => !String(c.id).startsWith('list-'));
+    
+    return cornersCollisions;
 };
 
 const Matrix = () => {
@@ -229,7 +247,7 @@ const Matrix = () => {
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={customCollisionDetection}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
