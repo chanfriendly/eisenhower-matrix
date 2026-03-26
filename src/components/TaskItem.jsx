@@ -144,6 +144,18 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
         }
     };
 
+    const handleSubtaskPaste = async (e) => {
+        const text = e.clipboardData.getData('text');
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+        if (lines.length > 1) {
+            e.preventDefault();
+            for (const line of lines) {
+                await addGoogleTask(line, '', task.quadrantId, null, task.id);
+            }
+            setSubtaskTitle('');
+        }
+    };
+
     const handleBlur = () => {
         const hasChanges =
             editTitle !== task.title ||
@@ -429,6 +441,7 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                             value={subtaskTitle}
                             onChange={(e) => setSubtaskTitle(e.target.value)}
                             onKeyDown={handleAddSubtask}
+                            onPaste={handleSubtaskPaste}
                         />
                     </div>
 
