@@ -241,8 +241,8 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
 
         try {
             await navigator.clipboard.writeText(prompt);
-            alert("Prompt copied to clipboard! Paste it into Gemini.");
-            window.open('https://gemini.google.com/app', '_blank');
+            alert("Prompt copied to clipboard! Paste it into Claude.");
+            window.open('https://claude.ai/new', '_blank');
         } catch (err) {
             console.error('Failed to copy text: ', err);
             // Fallback for browsers that don't support async clipboard API
@@ -252,8 +252,8 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
             textArea.select();
             try {
                 document.execCommand('copy');
-                alert("Prompt copied to clipboard! Paste it into Gemini.");
-                window.open('https://gemini.google.com/app', '_blank');
+                alert("Prompt copied to clipboard! Paste it into Claude.");
+                window.open('https://claude.ai/new', '_blank');
             } catch (fallbackErr) {
                 console.error('Fallback copy failed', fallbackErr);
                 alert("Failed to copy prompt to clipboard automatically. Your browser may have blocked it.");
@@ -520,7 +520,7 @@ export const TaskCard = ({ task, isDragging, listeners, attributes, style, setNo
                         onClick={handleDelegateToAI}
                         className="text-[11px] flex items-center gap-1.5 px-2 py-1 text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 rounded transition-colors font-medium border border-purple-100 dark:border-purple-800/30"
                     >
-                        <Sparkles className="w-3.5 h-3.5" /> Delegate to Gemini
+                        <Sparkles className="w-3.5 h-3.5" /> Delegate to Claude
                     </button>
                     <button
                         onClick={handleDelegate}

@@ -16,6 +16,7 @@ import { useToast } from '../contexts/ToastContext';
 import DroppableQuadrant from './DroppableQuadrant';
 import TaskItem, { TaskCard } from './TaskItem';
 import SearchBar from './SearchBar';
+import UnassignedDrawer from './UnassignedDrawer';
 
 const ListDropZone = ({ list }) => {
     const { isOver, setNodeRef } = useDroppable({
@@ -70,6 +71,7 @@ const Matrix = () => {
     // Initialize/Load mapping
     const [showCompleted, setShowCompleted] = useState(false);
     const [isLowEnergyMode, setIsLowEnergyMode] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
@@ -104,6 +106,14 @@ const Matrix = () => {
             }
         }
     }, [googleTasks]);
+
+    const getUncategorizedTasks = () => {
+        return googleTasks.filter(task => {
+            if (!showCompleted && task.status === 'completed') return false;
+            if (task.parent) return false;
+            return task.quadrantId === null || task.quadrantId === undefined;
+        });
+    };
 
     // Organize tasks into quadrants
     const getTasksForQuadrant = (quadrantId) => {
@@ -336,6 +346,16 @@ const Matrix = () => {
                     </div>
                 ) : null}
             </DragOverlay>
+
+            <UnassignedDrawer
+                tasks={getUncategorizedTasks()}
+                isOpen={isDrawerOpen}
+                onOpen={() => setIsDrawerOpen(true)}
+                onClose={() => setIsDrawerOpen(false)}
+                onUpdate={handleUpdateTask}
+                onDelete={handleDelete}
+                isLowEnergyMode={isLowEnergyMode}
+            />
         </DndContext>
     );
 };

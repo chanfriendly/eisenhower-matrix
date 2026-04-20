@@ -321,7 +321,7 @@ export const GoogleTasksProvider = ({ children }) => {
                 const energy = parseEnergyFromNotes(task.notes);
                 return {
                     ...task,
-                    quadrantId: quadrantId || 'do-first', // Default to 'do-first' if not tagged
+                    quadrantId: quadrantId || null,
                     energy: energy,
                     subtaskCount: subtaskCounts[task.id] || 0,
                     displayNotes: cleanNotes(task.notes), // Clean notes for UI

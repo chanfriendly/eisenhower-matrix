@@ -100,7 +100,7 @@ const HelpModal = ({ isOpen, onClose }) => {
                                 <span className="text-blue-500 mt-0.5">📨</span>
                                 <div>
                                     <strong className="text-zinc-800 dark:text-zinc-200 block">1-Click Delegation</strong>
-                                    Tasks in the Delegate bucket get a dedicated button that instantly drafts an email to hand the work off.
+                                    Tasks in the Delegate bucket get two buttons: one copies a prompt to your clipboard and opens Claude, and one drafts a delegation email.
                                 </div>
                             </li>
                             <li className="flex gap-3">
