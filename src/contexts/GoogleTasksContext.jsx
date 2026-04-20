@@ -258,21 +258,31 @@ export const GoogleTasksProvider = ({ children }) => {
 
         if (!accessToken || !listId) return;
         setLoading(true);
+
+        const fetchAllTasksForSingleList = async (singleListId) => {
+            const items = [];
+            let pageToken = null;
+            do {
+                let url = `https://tasks.googleapis.com/tasks/v1/lists/${singleListId}/tasks?showCompleted=true&showHidden=true&maxResults=100`;
+                if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+                if (!res.ok) {
+                    if (res.status === 401) throw new Error('401');
+                    throw new Error(`Failed to fetch tasks: ${res.status}`);
+                }
+                const data = await res.json();
+                items.push(...(data.items || []).map(t => ({ ...t, listId: singleListId })));
+                pageToken = data.nextPageToken || null;
+            } while (pageToken);
+            return items;
+        };
+
         try {
             let allItems = [];
 
             if (listId === 'ALL') {
                 const listPromises = taskLists.map(list =>
-                    fetch(`https://tasks.googleapis.com/tasks/v1/lists/${list.id}/tasks?showCompleted=true&showHidden=true`, {
-                        headers: { Authorization: `Bearer ${accessToken}` }
-                    }).then(async res => {
-                        if (!res.ok) {
-                            if (res.status === 401) throw new Error('401');
-                            return [];
-                        }
-                        const data = await res.json();
-                        return (data.items || []).map(t => ({ ...t, listId: list.id }));
-                    }).catch(e => {
+                    fetchAllTasksForSingleList(list.id).catch(e => {
                         if (e.message === '401') throw e;
                         return [];
                     })
@@ -289,34 +299,17 @@ export const GoogleTasksProvider = ({ children }) => {
                     throw e;
                 }
             } else {
-                const tasksRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true`, {
-                    headers: { Authorization: `Bearer ${accessToken}` }
-                });
-
-                if (!tasksRes.ok) {
-                    if (tasksRes.status === 401) {
-                        handleSessionExpired();
-                        return;
-                    }
-                    throw new Error(`Failed to fetch tasks: ${tasksRes.status}`);
-                }
-
-                const tasksData = await tasksRes.json();
-                allItems = (tasksData.items || []).map(t => ({ ...t, listId: listId }));
+                allItems = await fetchAllTasksForSingleList(listId);
             }
 
-            // Process tasks to extract metadata and count subtasks
-            const items = allItems;
-
-            // Map parent IDs to count subtasks
             const subtaskCounts = {};
-            items.forEach(t => {
+            allItems.forEach(t => {
                 if (t.parent) {
                     subtaskCounts[t.parent] = (subtaskCounts[t.parent] || 0) + 1;
                 }
             });
 
-            const processedTasks = items.map(task => {
+            const processedTasks = allItems.map(task => {
                 const quadrantId = parseQuadrantFromNotes(task.notes);
                 const energy = parseEnergyFromNotes(task.notes);
                 return {
@@ -324,8 +317,8 @@ export const GoogleTasksProvider = ({ children }) => {
                     quadrantId: quadrantId || null,
                     energy: energy,
                     subtaskCount: subtaskCounts[task.id] || 0,
-                    displayNotes: cleanNotes(task.notes), // Clean notes for UI
-                    originalNotes: task.notes // Keep original for updates
+                    displayNotes: cleanNotes(task.notes),
+                    originalNotes: task.notes
                 };
             });
 
