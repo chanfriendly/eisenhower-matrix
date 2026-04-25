@@ -20,12 +20,8 @@ export const GoogleTasksProvider = ({ children }) => {
 
 
     const handleSessionExpired = () => {
-        console.error("Token expired or invalid, attempting silent refresh...");
-        try {
-            silentRefresh();
-        } catch (e) {
-            setSessionExpired(true);
-        }
+        console.error("Token expired or invalid.");
+        setSessionExpired(true);
         // Do NOT clear user data immediately so they can still read local state
     };
 
@@ -137,23 +133,7 @@ export const GoogleTasksProvider = ({ children }) => {
             setError("Login failed. Please try again.");
         },
         scope: SCOPE,
-    });
-
-    const silentRefresh = useGoogleLogin({
-        prompt: 'none',
-        onSuccess: (tokenResponse) => {
-            console.log("Silent refresh success");
-            if (isDemo) exitDemoMode();
-            setAccessToken(tokenResponse.access_token);
-            localStorage.setItem('accessToken', tokenResponse.access_token);
-            setError(null);
-            setSessionExpired(false);
-        },
-        onError: (err) => {
-            console.error("Silent refresh failed", err);
-            setSessionExpired(true);
-        },
-        scope: SCOPE,
+        ux_mode: 'redirect',
     });
 
 
