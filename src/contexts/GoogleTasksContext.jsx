@@ -26,6 +26,7 @@ export const GoogleTasksProvider = ({ children }) => {
     };
 
     const [isDemo, setIsDemo] = useState(false);
+    const [silentRefreshFailed, setSilentRefreshFailed] = useState(false);
 
     // Helper to extract quadrant from notes
     const parseQuadrantFromNotes = (notes) => {
@@ -117,6 +118,7 @@ export const GoogleTasksProvider = ({ children }) => {
             localStorage.setItem('accessToken', tokenResponse.access_token);
             setError(null); // Clear previous errors
             setSessionExpired(false);
+            setSilentRefreshFailed(false);
 
             // Fetch user profile (optional, for display)
             fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
@@ -135,6 +137,40 @@ export const GoogleTasksProvider = ({ children }) => {
         scope: SCOPE,
         ux_mode: 'redirect',
     });
+
+    const silentRefresh = useGoogleLogin({
+        onSuccess: (tokenResponse) => {
+            setAccessToken(tokenResponse.access_token);
+            localStorage.setItem('accessToken', tokenResponse.access_token);
+            setSessionExpired(false);
+            setSilentRefreshFailed(false);
+            setError(null);
+        },
+        onError: () => {
+            // Silent refresh failed — user must log in manually
+            setSilentRefreshFailed(true);
+        },
+        scope: SCOPE,
+        prompt: 'none',
+        // popup mode (no ux_mode) so a failed silent auth doesn't redirect-loop
+    });
+
+    // Attempt silent re-auth on mount if we have a stored user
+    useEffect(() => {
+        const storedDemo = localStorage.getItem('isDemo');
+        if (storedDemo === 'true') return;
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            silentRefresh();
+        }
+    }, []);
+
+    // Attempt silent re-auth whenever the session expires
+    useEffect(() => {
+        if (sessionExpired) {
+            silentRefresh();
+        }
+    }, [sessionExpired]);
 
 
     const logout = () => {
@@ -704,7 +740,8 @@ export const GoogleTasksProvider = ({ children }) => {
             moveTaskToList,
             loading,
             error,
-            sessionExpired
+            sessionExpired,
+            silentRefreshFailed
         }}>
             {children}
         </GoogleTasksContext.Provider>

@@ -3,9 +3,9 @@ import { useGoogleTasks } from '../contexts/GoogleTasksContext';
 import { LogIn } from 'lucide-react';
 
 const SessionExpiredModal = () => {
-    const { sessionExpired, login } = useGoogleTasks();
+    const { silentRefreshFailed, login } = useGoogleTasks();
 
-    if (!sessionExpired) return null;
+    if (!silentRefreshFailed) return null;
 
     return (
         <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
